@@ -15,9 +15,9 @@ namespace GameForest_Test_Task
         SpriteBatch spriteBatch;
         CurrentScreenE curScreen;
 
-        private Texture2D playBtn;
-        private Texture2D playBtnHov;
-        private Texture2D playBtnClicked;
+
+        private string[] requiredTextures;
+        private Dictionary<string, Texture2D> textures;
 
         public Match3Game()
         {
@@ -27,6 +27,14 @@ namespace GameForest_Test_Task
             curScreen = CurrentScreenE.MainMenuScreen;
 
             this.IsMouseVisible = true;
+
+            requiredTextures = new string[] {
+                "playBtn",
+                "playBtnHov",
+                "playBtnClicked",
+            };
+
+            textures = new Dictionary<string, Texture2D>();
         }
 
         protected override void Initialize()
@@ -38,9 +46,10 @@ namespace GameForest_Test_Task
         {
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            playBtn = Content.Load<Texture2D>("graphics/playBtn");
-            playBtnHov = Content.Load<Texture2D>("graphics/playBtnHov");
-            playBtnClicked = Content.Load<Texture2D>("graphics/playBtnClicked");
+            for (int i = 0; i < requiredTextures.Length; ++i)
+            {
+                textures.Add(requiredTextures[i], Content.Load<Texture2D>("graphics/" + requiredTextures[i]));
+            }
         }
 
         protected override void UnloadContent()
@@ -77,6 +86,7 @@ namespace GameForest_Test_Task
                     {
                         btnToDraw = Mouse.GetState().LeftButton == ButtonState.Pressed ? playBtnClicked : playBtnHov;
                     }
+            Texture2D playBtn = textures["playBtn"];
 
                     spriteBatch.Draw(btnToDraw, new Vector2(btnCenterX, btnCenterY), Color.White);
 
@@ -87,6 +97,8 @@ namespace GameForest_Test_Task
             }
 
             spriteBatch.End();
+            Texture2D playBtn = textures["playBtn"];
+                btnToDraw = Mouse.GetState().LeftButton == ButtonState.Pressed ? textures["playBtnClicked"] : textures["playBtnHov"];
 
             base.Draw(gameTime);
         }
