@@ -9,13 +9,27 @@ namespace GameForest_Test_Task
     /// </summary>
     public class Match3Game : Game
     {
+        private enum CurrentScreenE
+        {
+            MainMenuScreen,
+            GameScreen,
+        };
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        CurrentScreenE curScreen;
+
+        private Texture2D playBtn;
+        private Texture2D playBtnHov;
+        private Texture2D playBtnClicked;
 
         public Match3Game()
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+
+            curScreen = CurrentScreenE.MainMenuScreen;
+
+            this.IsMouseVisible = true;
         }
 
         /// <summary>
@@ -40,7 +54,9 @@ namespace GameForest_Test_Task
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            // TODO: use this.Content to load your game content here
+            playBtn = Content.Load<Texture2D>("graphics/playBtn");
+            playBtnHov = Content.Load<Texture2D>("graphics/playBtnHov");
+            playBtnClicked = Content.Load<Texture2D>("graphics/playBtnClicked");
         }
 
         /// <summary>
@@ -75,9 +91,40 @@ namespace GameForest_Test_Task
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            // TODO: Add your drawing code here
+            spriteBatch.Begin();
+
+            switch (curScreen)
+            {
+                case CurrentScreenE.MainMenuScreen:
+                    int btnCenterX = (GraphicsDevice.Viewport.Width - playBtn.Width) / 2;
+                    int btnCenterY = (GraphicsDevice.Viewport.Height - playBtn.Height) / 2;
+
+                    Point mp = getMousePosition();
+                    Rectangle btnRect = new Rectangle(btnCenterX, btnCenterY, playBtn.Width, playBtn.Height);
+
+                    Texture2D btnToDraw = playBtn;
+
+                    if (btnRect.Contains(mp))
+                    {
+                        btnToDraw = Mouse.GetState().LeftButton == ButtonState.Pressed ? playBtnClicked : playBtnHov;
+                    }
+
+                    spriteBatch.Draw(btnToDraw, new Vector2(btnCenterX, btnCenterY), Color.White);
+
+                    break;
+                case CurrentScreenE.GameScreen:
+
+                    break;
+            }
+
+            spriteBatch.End();
 
             base.Draw(gameTime);
+        }
+
+        private Point getMousePosition()
+        {
+            return Mouse.GetState().Position;
         }
     }
 }
