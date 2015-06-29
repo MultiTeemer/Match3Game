@@ -1,7 +1,9 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System;
+using System.Collections.Generic;
+
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System.Collections.Generic;
 
 namespace GameForest_Test_Task
 {
@@ -45,6 +47,10 @@ namespace GameForest_Test_Task
 
         private int curSelectedItemIdx;
 
+        private bool mouseBlocked;
+
+        private SwapAnimation? curSwapAnimation;
+
         public Match3Game()
         {
             graphics = new GraphicsDeviceManager(this);
@@ -52,7 +58,7 @@ namespace GameForest_Test_Task
 
             curScreen = CurrentScreenE.MainMenuScreen;
 
-            this.IsMouseVisible = true;
+            IsMouseVisible = true;
 
             requiredTextures = new string[] {
                 "playBtn",
@@ -79,6 +85,10 @@ namespace GameForest_Test_Task
             blocksTextures = new Texture2D[(int)GameField.BlockTypeE.BlocksCount * 2];
 
             curSelectedItemIdx = -1;
+
+            mouseBlocked = false;
+
+            curSwapAnimation = null;
         }
 
         protected override void Initialize()
@@ -192,19 +202,54 @@ namespace GameForest_Test_Task
 
         private void updateGameScreen(GameTime gameTime)
         {
+            if (mouseBlocked) return;
+
             int gameFieldSideLength = FIELD_SIZE * BLOCK_TEXTURE_SIZE;
             Rectangle gameFieldRect = new Rectangle(FIELD_SHIFT_BY_X, FIELD_SHIFT_BY_Y, gameFieldSideLength, gameFieldSideLength);
             Point mp = getMousePosition();
 
-            if (gameFieldRect.Contains(mp) && leftKeyClick())
+            if (leftKeyClick())
             {
-                curSelectedItemIdx = (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE * FIELD_SIZE + (mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE;
+                if (gameFieldRect.Contains(mp))
+                {
+                    int selectedItemIdx = (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE * FIELD_SIZE + (mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE;
+
+                    if (curSelectedItemIdx == -1)
+                    {
+                        curSelectedItemIdx = selectedItemIdx;
+                    }
+                    else
+                    {
+                        Point p1 = blockIdToCoords(curSelectedItemIdx);
+                        Point p2 = blockIdToCoords(selectedItemIdx);
+
+                        int dx = p2.X - p1.X;
+                        int dy = p2.Y - p1.Y;
+
+                        if (Math.Abs(dx) == 1 && dy == 0 || dx == 0 && Math.Abs(dy) == 1)
+                        {
+                            mouseBlocked = true;
+
+                            float d = SwapAnimation.DURATION;
+                            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / d, dy * BLOCK_TEXTURE_SIZE / d);
+
+                            curSwapAnimation = new SwapAnimation(curSelectedItemIdx, selectedItemIdx, shift);
+                        }
+
+                        curSelectedItemIdx = -1;
+                    }
+                }
+                else
+                {
+                    curSelectedItemIdx = -1;
+                }
             }
         }
 
         private void drawGameScreen(GameTime gameTime)
         {
-            int blocksCount = (int)GameField.BlockTypeE.BlocksCount;
+            if (curSwapAnimation != null)
+                drawGameScreenAnimation(gameTime);
 
             for (int i = 0; i < FIELD_SIZE; ++i)
             {
@@ -212,7 +257,13 @@ namespace GameForest_Test_Task
                 {
                     int idx1d = i * FIELD_SIZE + j;
 
-                    Texture2D blockTexture = blocksTextures[(int)field.field[idx1d] + (idx1d == curSelectedItemIdx ? blocksCount : 0)];
+                    if (curSwapAnimation != null)
+                    {
+                        if (idx1d == curSwapAnimation.Value.block1Idx || idx1d == curSwapAnimation.Value.block2Idx)
+                            continue;
+                    }
+
+                    Texture2D blockTexture = getBlockTextureById(idx1d);
 
                     int x = FIELD_SHIFT_BY_X + j * BLOCK_TEXTURE_SIZE;
                     int y = FIELD_SHIFT_BY_Y + i * BLOCK_TEXTURE_SIZE;
@@ -222,9 +273,57 @@ namespace GameForest_Test_Task
             }
         }
 
+        private void drawGameScreenAnimation(GameTime gameTime)
+        {
+            float dt = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+
+            SwapAnimation copy = curSwapAnimation.Value;
+
+            copy.elapsed += dt;
+
+            curSwapAnimation = copy;
+
+            if (curSwapAnimation.Value.elapsed >= SwapAnimation.DURATION)
+            {
+                field.Swap(curSwapAnimation.Value.block1Idx, curSwapAnimation.Value.block2Idx);
+
+                curSwapAnimation = null;
+                mouseBlocked = false;
+
+                return;
+            }
+
+            int id1 = curSwapAnimation.Value.block1Idx;
+            int id2 = curSwapAnimation.Value.block2Idx;
+
+            Point p1 = blockIdToCoords(id1);
+            Point p2 = blockIdToCoords(id2);
+
+            float elapsed = (float)curSwapAnimation.Value.elapsed;
+
+            float x1 = FIELD_SHIFT_BY_X + p1.X * BLOCK_TEXTURE_SIZE + elapsed * curSwapAnimation.Value.shift.X;
+            float y1 = FIELD_SHIFT_BY_Y + p1.Y * BLOCK_TEXTURE_SIZE + elapsed * curSwapAnimation.Value.shift.Y;
+
+            float x2 = FIELD_SHIFT_BY_X + p2.X * BLOCK_TEXTURE_SIZE - elapsed * curSwapAnimation.Value.shift.X;
+            float y2 = FIELD_SHIFT_BY_Y + p2.Y * BLOCK_TEXTURE_SIZE - elapsed * curSwapAnimation.Value.shift.Y;
+
+            spriteBatch.Draw(getBlockTextureById(id1), new Vector2(x1, y1), Color.White);
+            spriteBatch.Draw(getBlockTextureById(id2), new Vector2(x2, y2), Color.White);
+        }
+
         private Point getMousePosition()
         {
             return Mouse.GetState().Position;
+        }
+
+        private Point blockIdToCoords(int id)
+        {
+            return new Point(id % FIELD_SIZE, id / FIELD_SIZE);
+        }
+
+        private Texture2D getBlockTextureById(int id)
+        {
+            return blocksTextures[(int)field.field[id] + (id == curSelectedItemIdx ? (int)GameField.BlockTypeE.BlocksCount : 0)];
         }
 
         private bool leftKeyClick()
