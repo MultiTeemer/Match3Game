@@ -15,6 +15,8 @@ namespace GameForest_Test_Task
         SpriteBatch spriteBatch;
         CurrentScreenE curScreen;
 
+        MouseState lastState;
+
         private delegate void updater(GameTime gameTime);
         private delegate void drawer(GameTime gameTime);
 
@@ -67,6 +69,8 @@ namespace GameForest_Test_Task
 
             updaters[(int)this.curScreen](gameTime);
 
+            lastState = Mouse.GetState();
+
             base.Update(gameTime);
         }
 
@@ -95,7 +99,7 @@ namespace GameForest_Test_Task
             Point mp = getMousePosition();
             Rectangle btnRect = new Rectangle(btnCenterX, btnCenterY, playBtn.Width, playBtn.Height);
 
-            if (btnRect.Contains(mp) && Mouse.GetState().LeftButton == ButtonState.Pressed)
+            if (btnRect.Contains(mp) && Mouse.GetState().LeftButton == ButtonState.Released && lastState.LeftButton == ButtonState.Pressed)
             {
                 curScreen = CurrentScreenE.GameScreen;
                 gameState = GameStatusE.GameRunning;
