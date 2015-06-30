@@ -40,6 +40,8 @@ namespace GameForest_Test_Task
         private Texture2D[] blocksTextures;
 
         private const int FIELD_SIZE = 8;
+        private const float SWAP_ANIM_DURATION = 200;
+        private const float BLOCK_DROP_DOWN_VELOCITY = 5e-3f;
 
         private int FIELD_SHIFT_BY_X;
         private int FIELD_SHIFT_BY_Y;
@@ -47,9 +49,10 @@ namespace GameForest_Test_Task
 
         private int curSelectedItemIdx;
 
-        private bool mouseBlocked;
+        private bool animationRunning;
 
-        private SwapAnimation? curSwapAnimation;
+        private List<MoveAnimation> curAnimations;
+        private bool[] inAnimation;
 
         public Match3Game()
         {
@@ -86,9 +89,10 @@ namespace GameForest_Test_Task
 
             curSelectedItemIdx = -1;
 
-            mouseBlocked = false;
+            animationRunning = false;
 
-            curSwapAnimation = null;
+            curAnimations = new List<MoveAnimation>();
+            inAnimation = new bool[FIELD_SIZE * FIELD_SIZE];
         }
 
         protected override void Initialize()
@@ -202,7 +206,11 @@ namespace GameForest_Test_Task
 
         private void updateGameScreen(GameTime gameTime)
         {
-            if (mouseBlocked) return;
+            animationRunning = curAnimations.Count > 0;
+
+            if (animationRunning) return;
+
+            updateField();
 
             int gameFieldSideLength = FIELD_SIZE * BLOCK_TEXTURE_SIZE;
             Rectangle gameFieldRect = new Rectangle(FIELD_SHIFT_BY_X, FIELD_SHIFT_BY_Y, gameFieldSideLength, gameFieldSideLength);
@@ -220,20 +228,37 @@ namespace GameForest_Test_Task
                     }
                     else
                     {
-                        Point p1 = blockIdToCoords(curSelectedItemIdx);
-                        Point p2 = blockIdToCoords(selectedItemIdx);
+                        Vector2 p1 = blockIdToTableCoords(curSelectedItemIdx);
+                        Vector2 p2 = blockIdToTableCoords(selectedItemIdx);
 
-                        int dx = p2.X - p1.X;
-                        int dy = p2.Y - p1.Y;
+                        int dx = (int)(p2.X - p1.X);
+                        int dy = (int)(p2.Y - p1.Y);
 
                         if (Math.Abs(dx) == 1 && dy == 0 || dx == 0 && Math.Abs(dy) == 1)
                         {
-                            mouseBlocked = true;
+                            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, dy * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
 
-                            float d = SwapAnimation.DURATION;
-                            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / d, dy * BLOCK_TEXTURE_SIZE / d);
+                            MoveAnimation block1Movement = new MoveAnimation(
+                                curSelectedItemIdx,
+                                shift,
+                                SWAP_ANIM_DURATION,
+                                field.Get(curSelectedItemIdx),
+                                blockIdToTableCoords(selectedItemIdx)
+                            );
 
-                            curSwapAnimation = new SwapAnimation(curSelectedItemIdx, selectedItemIdx, shift);
+                            MoveAnimation block2Movement = new MoveAnimation(
+                                selectedItemIdx,
+                                -shift,
+                                SWAP_ANIM_DURATION,
+                                field.Get(selectedItemIdx),
+                                blockIdToTableCoords(curSelectedItemIdx)
+                            );
+
+                            inAnimation[curSelectedItemIdx] = true;
+                            inAnimation[selectedItemIdx] = true;
+
+                            curAnimations.Add(block1Movement);
+                            curAnimations.Add(block2Movement);
                         }
 
                         curSelectedItemIdx = -1;
@@ -246,24 +271,149 @@ namespace GameForest_Test_Task
             }
         }
 
+        private int countBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
+        {
+            int counter = 0;
+            Vector2 pos = start + shift;
+            bool sameBlock = type == field.Get(tableCoordsToBlockId((int)pos.X, (int)pos.Y));
+
+            while (sameBlock)
+            {
+                ++counter;
+
+                pos += shift;
+
+                sameBlock = type == field.Get(tableCoordsToBlockId(pos));
+            }
+
+            return counter;
+        }
+
+        private void destroyBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
+        {
+            Vector2 pos = start + shift;
+            bool sameBlock = type == field.Get(tableCoordsToBlockId(pos));
+
+            while (sameBlock)
+            {
+                int idx = tableCoordsToBlockId(pos);
+
+                field.Set(idx, GameField.BlockTypeE.Empty);
+
+                pos += shift;
+
+                sameBlock = type == field.Get(tableCoordsToBlockId(pos));
+            }
+        }
+
+        private void destroyChains()
+        {
+            for (int i = 0; i < FIELD_SIZE; ++i)
+            {
+                for (int j = 0; j < FIELD_SIZE; ++j)
+                {
+                    int idx = tableCoordsToBlockId(j, i);
+                    GameField.BlockTypeE type = field.Get(idx);
+                    Vector2 start = new Vector2(j, i);
+                    bool blocksDestroyed = false;
+
+                    if (type == GameField.BlockTypeE.Empty) continue;
+
+                    int horCount = countBlocks(type, start, new Vector2(-1, 0)) + 1 + countBlocks(type, start, new Vector2(1, 0));
+
+                    if (horCount >= 3)
+                    {
+                        blocksDestroyed = true;
+
+                        destroyBlocks(type, start, new Vector2(-1, 0));
+                        destroyBlocks(type, start, new Vector2(1, 0));
+                    }
+
+                    int verCount = countBlocks(type, start, new Vector2(0, -1)) + 1 + countBlocks(type, start, new Vector2(0, 1));
+
+                    if (verCount >= 3)
+                    {
+                        blocksDestroyed = true;
+
+                        destroyBlocks(type, start, new Vector2(0, -1));
+                        destroyBlocks(type, start, new Vector2(0, 1));
+                    }
+
+                    if (blocksDestroyed)
+                    {
+                        field.Set(idx, GameField.BlockTypeE.Empty);
+                    }
+                }
+            }
+        }
+
+        private void createDropDownAnimations()
+        {
+            for (int i = 0; i < FIELD_SIZE; ++i)
+            {
+                int firstEmptyRow = -1;
+
+                for (int j = FIELD_SIZE - 1; j >= 0 && firstEmptyRow == -1; --j)
+                {
+                    if (field.IsEmpty(tableCoordsToBlockId(i, j)))
+                    {
+                        firstEmptyRow = j;
+                    }
+                }
+
+                if (firstEmptyRow != -1)
+                {
+                    int[] fallHeight = new int[FIELD_SIZE];
+
+                    fallHeight[firstEmptyRow] = 1;
+
+                    for (int j = firstEmptyRow - 1; j >= 0; --j)
+                    {
+                        int idx = tableCoordsToBlockId(i, j);
+                        bool isEmpty = field.IsEmpty(idx);
+
+                        fallHeight[j] = fallHeight[j + 1] + Convert.ToInt32(field.IsEmpty(idx));
+
+                        if (!isEmpty)
+                        {
+                            Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
+                            Vector2 destination = new Vector2(i, j + fallHeight[j]);
+                            float duration = fallHeight[j] / BLOCK_DROP_DOWN_VELOCITY;
+
+                            MoveAnimation anim = new MoveAnimation(idx, shift, duration, field.Get(idx), destination);
+
+                            curAnimations.Add(anim);
+                            field.SetEmpty(idx);
+
+                            inAnimation[idx] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void updateField()
+        {
+            destroyChains();
+            createDropDownAnimations();
+        }
+
         private void drawGameScreen(GameTime gameTime)
         {
-            if (curSwapAnimation != null)
+            if (animationRunning)
                 drawGameScreenAnimation(gameTime);
 
             for (int i = 0; i < FIELD_SIZE; ++i)
             {
                 for (int j = 0; j < FIELD_SIZE; ++j)
                 {
-                    int idx1d = i * FIELD_SIZE + j;
+                    int idx = tableCoordsToBlockId(j, i);
 
-                    if (curSwapAnimation != null)
-                    {
-                        if (idx1d == curSwapAnimation.Value.block1Idx || idx1d == curSwapAnimation.Value.block2Idx)
-                            continue;
-                    }
+                    if (field.Get(idx) == GameField.BlockTypeE.Empty) continue; // remove later
 
-                    Texture2D blockTexture = getBlockTextureById(idx1d);
+                    if (inAnimation[idx]) continue;
+
+                    Texture2D blockTexture = getBlockTextureById(idx);
 
                     int x = FIELD_SHIFT_BY_X + j * BLOCK_TEXTURE_SIZE;
                     int y = FIELD_SHIFT_BY_Y + i * BLOCK_TEXTURE_SIZE;
@@ -277,38 +427,36 @@ namespace GameForest_Test_Task
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
-            SwapAnimation copy = curSwapAnimation.Value;
+            List<MoveAnimation> animations = new List<MoveAnimation>();
+            List<MoveAnimation>.Enumerator i = curAnimations.GetEnumerator();
 
-            copy.elapsed += dt;
-
-            curSwapAnimation = copy;
-
-            if (curSwapAnimation.Value.elapsed >= SwapAnimation.DURATION)
+            while (i.MoveNext())
             {
-                field.Swap(curSwapAnimation.Value.block1Idx, curSwapAnimation.Value.block2Idx);
+                MoveAnimation curr = i.Current;
 
-                curSwapAnimation = null;
-                mouseBlocked = false;
+                curr.timeElapsed += dt;
 
-                return;
+                if (curr.timeElapsed < curr.duration)
+                {
+                    animations.Add(curr);
+                }
+                else
+                {
+                    int idx = tableCoordsToBlockId(curr.destination);
+                    inAnimation[idx] = false;
+
+                    field.Set(idx, curr.type);
+                }
+
+                Vector2 tableCoords = blockIdToTableCoords(curr.blockId);
+
+                float x = FIELD_SHIFT_BY_X + tableCoords.X * BLOCK_TEXTURE_SIZE + curr.timeElapsed * curr.shift.X;
+                float y = FIELD_SHIFT_BY_Y + tableCoords.Y * BLOCK_TEXTURE_SIZE + curr.timeElapsed * curr.shift.Y;
+
+                spriteBatch.Draw(getBlockTextureByType(curr.type), new Vector2(x, y), Color.White);
             }
 
-            int id1 = curSwapAnimation.Value.block1Idx;
-            int id2 = curSwapAnimation.Value.block2Idx;
-
-            Point p1 = blockIdToCoords(id1);
-            Point p2 = blockIdToCoords(id2);
-
-            float elapsed = (float)curSwapAnimation.Value.elapsed;
-
-            float x1 = FIELD_SHIFT_BY_X + p1.X * BLOCK_TEXTURE_SIZE + elapsed * curSwapAnimation.Value.shift.X;
-            float y1 = FIELD_SHIFT_BY_Y + p1.Y * BLOCK_TEXTURE_SIZE + elapsed * curSwapAnimation.Value.shift.Y;
-
-            float x2 = FIELD_SHIFT_BY_X + p2.X * BLOCK_TEXTURE_SIZE - elapsed * curSwapAnimation.Value.shift.X;
-            float y2 = FIELD_SHIFT_BY_Y + p2.Y * BLOCK_TEXTURE_SIZE - elapsed * curSwapAnimation.Value.shift.Y;
-
-            spriteBatch.Draw(getBlockTextureById(id1), new Vector2(x1, y1), Color.White);
-            spriteBatch.Draw(getBlockTextureById(id2), new Vector2(x2, y2), Color.White);
+            curAnimations = new List<MoveAnimation>(animations);
         }
 
         private Point getMousePosition()
@@ -316,14 +464,29 @@ namespace GameForest_Test_Task
             return Mouse.GetState().Position;
         }
 
-        private Point blockIdToCoords(int id)
+        private Vector2 blockIdToTableCoords(int id)
         {
-            return new Point(id % FIELD_SIZE, id / FIELD_SIZE);
+            return new Vector2(id % FIELD_SIZE, id / FIELD_SIZE);
+        }
+
+        private int tableCoordsToBlockId(int col, int row)
+        {
+            return FIELD_SIZE * row + col;
+        }
+
+        private int tableCoordsToBlockId(Vector2 pos)
+        {
+            return FIELD_SIZE * (int)pos.Y + (int)pos.X;
         }
 
         private Texture2D getBlockTextureById(int id)
         {
             return blocksTextures[(int)field.field[id] + (id == curSelectedItemIdx ? (int)GameField.BlockTypeE.BlocksCount : 0)];
+        }
+
+        private Texture2D getBlockTextureByType(GameField.BlockTypeE type)
+        {
+            return blocksTextures[(int)type];
         }
 
         private bool leftKeyClick()

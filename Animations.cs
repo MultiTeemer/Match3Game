@@ -6,21 +6,23 @@ using Microsoft.Xna.Framework;
 
 namespace GameForest_Test_Task
 {
-    struct SwapAnimation
+    struct MoveAnimation
     {
-        public const float DURATION = 200; // in milliseconds
-
-        public int block1Idx;
-        public int block2Idx;
-        public double elapsed;
+        public int blockId;
+        public float timeElapsed;
+        public float duration;
         public Vector2 shift;
+        public GameField.BlockTypeE type;
+        public Vector2 destination;
 
-        public SwapAnimation(int id1, int id2, Vector2 sh)
+        public MoveAnimation(int id, Vector2 sh, float d, GameField.BlockTypeE t, Vector2 dest)
         {
-            block1Idx = id1;
-            block2Idx = id2;
+            blockId = id;
+            timeElapsed = 0;
             shift = sh;
-            elapsed = 0;
+            duration = d;
+            destination = dest;
+            type = t;
         }
     }
 }
