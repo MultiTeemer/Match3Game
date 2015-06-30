@@ -54,6 +54,20 @@ namespace GameForest_Test_Task
         private List<MoveAnimation> curAnimations;
         private bool[] inAnimation;
 
+        private struct Turn
+        {
+            public int blockIdx1;
+            public int blockIdx2;
+
+            public Turn(int id1, int id2)
+            {
+                blockIdx1 = id1;
+                blockIdx2 = id2;
+            }
+        };
+
+        private Turn? previousTurn;
+
         public Match3Game()
         {
             graphics = new GraphicsDeviceManager(this);
@@ -212,6 +226,13 @@ namespace GameForest_Test_Task
 
             updateField();
 
+            if (previousTurn != null)
+            {
+                addSwapAnimation(previousTurn.Value.blockIdx1, previousTurn.Value.blockIdx2);
+
+                previousTurn = null;
+            }
+
             int gameFieldSideLength = FIELD_SIZE * BLOCK_TEXTURE_SIZE;
             Rectangle gameFieldRect = new Rectangle(FIELD_SHIFT_BY_X, FIELD_SHIFT_BY_Y, gameFieldSideLength, gameFieldSideLength);
             Point mp = getMousePosition();
@@ -228,37 +249,11 @@ namespace GameForest_Test_Task
                     }
                     else
                     {
-                        Vector2 p1 = blockIdToTableCoords(curSelectedItemIdx);
-                        Vector2 p2 = blockIdToTableCoords(selectedItemIdx);
-
-                        int dx = (int)(p2.X - p1.X);
-                        int dy = (int)(p2.Y - p1.Y);
-
-                        if (Math.Abs(dx) == 1 && dy == 0 || dx == 0 && Math.Abs(dy) == 1)
+                        if (canSwap(curSelectedItemIdx, selectedItemIdx))
                         {
-                            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, dy * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
+                            previousTurn = new Turn(curSelectedItemIdx, selectedItemIdx);
 
-                            MoveAnimation block1Movement = new MoveAnimation(
-                                curSelectedItemIdx,
-                                shift,
-                                SWAP_ANIM_DURATION,
-                                field.Get(curSelectedItemIdx),
-                                blockIdToTableCoords(selectedItemIdx)
-                            );
-
-                            MoveAnimation block2Movement = new MoveAnimation(
-                                selectedItemIdx,
-                                -shift,
-                                SWAP_ANIM_DURATION,
-                                field.Get(selectedItemIdx),
-                                blockIdToTableCoords(curSelectedItemIdx)
-                            );
-
-                            inAnimation[curSelectedItemIdx] = true;
-                            inAnimation[selectedItemIdx] = true;
-
-                            curAnimations.Add(block1Movement);
-                            curAnimations.Add(block2Movement);
+                            addSwapAnimation(curSelectedItemIdx, selectedItemIdx);
                         }
 
                         curSelectedItemIdx = -1;
@@ -269,6 +264,50 @@ namespace GameForest_Test_Task
                     curSelectedItemIdx = -1;
                 }
             }
+        }
+
+        private void addSwapAnimation(int id1, int id2)
+        {
+            Vector2 p1 = blockIdToTableCoords(id1);
+            Vector2 p2 = blockIdToTableCoords(id2);
+
+            int dx = (int)(p2.X - p1.X);
+            int dy = (int)(p2.Y - p1.Y);
+
+            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, dy * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
+
+            MoveAnimation block1Movement = new MoveAnimation(
+                id1,
+                shift,
+                SWAP_ANIM_DURATION,
+                field.Get(id1),
+                blockIdToTableCoords(id2)
+            );
+
+            MoveAnimation block2Movement = new MoveAnimation(
+                id2,
+                -shift,
+                SWAP_ANIM_DURATION,
+                field.Get(id2),
+                blockIdToTableCoords(id1)
+            );
+
+            inAnimation[id1] = true;
+            inAnimation[id2] = true;
+
+            curAnimations.Add(block1Movement);
+            curAnimations.Add(block2Movement);
+        }
+
+        private bool canSwap(int id1, int id2)
+        {
+            Vector2 p1 = blockIdToTableCoords(id1);
+            Vector2 p2 = blockIdToTableCoords(id2);
+
+            int dx = (int)Math.Abs(p2.X - p1.X);
+            int dy = (int)Math.Abs(p2.Y - p1.Y);
+
+            return dx * dy == 0 && (dx != 0 || dy != 0);
         }
 
         private int countBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
@@ -289,6 +328,13 @@ namespace GameForest_Test_Task
             return counter;
         }
 
+        private void destroyOneBlock(int idx)
+        {
+            field.SetEmpty(idx);
+
+            // add to score
+        }
+
         private void destroyBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
         {
             Vector2 pos = start + shift;
@@ -298,7 +344,7 @@ namespace GameForest_Test_Task
             {
                 int idx = tableCoordsToBlockId(pos);
 
-                field.Set(idx, GameField.BlockTypeE.Empty);
+                destroyOneBlock(idx);
 
                 pos += shift;
 
@@ -341,7 +387,36 @@ namespace GameForest_Test_Task
 
                     if (blocksDestroyed)
                     {
-                        field.Set(idx, GameField.BlockTypeE.Empty);
+                        destroyOneBlock(idx);
+                    }
+                }
+            }
+
+            if (previousTurn != null)
+            {
+                int id1 = previousTurn.Value.blockIdx1;
+                int id2 = previousTurn.Value.blockIdx2;
+
+                if (field.IsEmpty(id1) || field.IsEmpty(id2))
+                {
+                    previousTurn = null;
+                }
+            }
+        }
+
+        private void generateItems()
+        {
+            Random gen = new Random();
+
+            for (int i = 0; i < FIELD_SIZE; ++i)
+            {
+                for (int j = 0; j < FIELD_SIZE; ++j)
+                {
+                    int idx = tableCoordsToBlockId(i, j);
+
+                    if (field.IsEmpty(idx))
+                    {
+                        field.Set(idx, (GameField.BlockTypeE)gen.Next(0, (int)GameField.BlockTypeE.BlocksCount));
                     }
                 }
             }
@@ -456,7 +531,7 @@ namespace GameForest_Test_Task
                 spriteBatch.Draw(getBlockTextureByType(curr.type), new Vector2(x, y), Color.White);
             }
 
-            curAnimations = new List<MoveAnimation>(animations);
+            curAnimations = animations;
         }
 
         private Point getMousePosition()
