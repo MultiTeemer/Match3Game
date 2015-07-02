@@ -10,22 +10,16 @@ namespace GameForest_Test_Task
 {
     public class Match3Game : Game
     {
-        private enum CurrentScreenE
+        private enum CurrentScreen
         {
             MainMenuScreen,
             GameScreen,
         };
 
-        private enum GameStatusE
-        {
-            GameRunning,
-            GameStoped,
-        };
-
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
 
-        CurrentScreenE curScreen;
+        CurrentScreen curScreen;
 
         MouseState lastState;
 
@@ -59,7 +53,7 @@ namespace GameForest_Test_Task
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
 
-            curScreen = CurrentScreenE.MainMenuScreen;
+            curScreen = CurrentScreen.MainMenuScreen;
 
             IsMouseVisible = true;
 
@@ -67,6 +61,10 @@ namespace GameForest_Test_Task
                 "playBtn",
                 "playBtnHov",
                 "playBtnClicked",
+                "okBtn",
+                "okBtnHov",
+                "okBtnClicked",
+                "gameOverDlg",
                 "circle",
                 "diamond",
                 "hex",
@@ -165,15 +163,12 @@ namespace GameForest_Test_Task
         {
             Texture2D playBtn = textures["playBtn"];
 
-            int btnCenterX = (GraphicsDevice.Viewport.Width - playBtn.Width) / 2;
-            int btnCenterY = (GraphicsDevice.Viewport.Height - playBtn.Height) / 2;
-
             Point mp = getMousePosition();
-            Rectangle btnRect = new Rectangle(btnCenterX, btnCenterY, playBtn.Width, playBtn.Height);
+            Rectangle btnRect = getPlayBtnRect();
 
             if (btnRect.Contains(mp) && leftKeyClick())
             {
-                curScreen = CurrentScreenE.GameScreen;
+                curScreen = CurrentScreen.GameScreen;
                 info = new GameInfo();
 
                 field.Init();
@@ -184,11 +179,8 @@ namespace GameForest_Test_Task
         {
             Texture2D playBtn = textures["playBtn"];
 
-            int btnCenterX = (GraphicsDevice.Viewport.Width - playBtn.Width) / 2;
-            int btnCenterY = (GraphicsDevice.Viewport.Height - playBtn.Height) / 2;
-
             Point mp = getMousePosition();
-            Rectangle btnRect = new Rectangle(btnCenterX, btnCenterY, playBtn.Width, playBtn.Height);
+            Rectangle btnRect = getPlayBtnRect();
 
             Texture2D btnToDraw = playBtn;
 
@@ -197,16 +189,31 @@ namespace GameForest_Test_Task
                 btnToDraw = Mouse.GetState().LeftButton == ButtonState.Pressed ? textures["playBtnClicked"] : textures["playBtnHov"];
             }
 
-            spriteBatch.Draw(btnToDraw, new Vector2(btnCenterX, btnCenterY), Color.White);
+            spriteBatch.Draw(btnToDraw, btnRect, Color.White);
         }
 
         private void updateGameScreen(GameTime gameTime)
         {
             animationRunning = runningAnimations.Count > 0;
+            Point mp = getMousePosition();
 
-            if (animationRunning || info.gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION)
-                return;
+            if (gameEnded())
+            {
+                Rectangle okBtnRect = getOkBtnRect();
 
+                if (okBtnRect.Contains(mp) && leftKeyClick())
+                {
+                    curScreen = CurrentScreen.MainMenuScreen;
+                }
+            }
+            else if (!animationRunning)
+            {
+                updateGame();
+            }
+        }
+
+        private void updateGame()
+        {
             updateField();
 
             if (info.previousTurn != null)
@@ -217,8 +224,8 @@ namespace GameForest_Test_Task
             }
 
             int gameFieldSideLength = FIELD_SIZE * BLOCK_TEXTURE_SIZE;
-            Rectangle gameFieldRect = new Rectangle(FIELD_SHIFT_BY_X, FIELD_SHIFT_BY_Y, gameFieldSideLength, gameFieldSideLength);
             Point mp = getMousePosition();
+            Rectangle gameFieldRect = new Rectangle(FIELD_SHIFT_BY_X, FIELD_SHIFT_BY_Y, gameFieldSideLength, gameFieldSideLength);
 
             if (leftKeyClick())
             {
@@ -520,21 +527,38 @@ namespace GameForest_Test_Task
             int w = GraphicsDevice.Viewport.Width;
             int h = GraphicsDevice.Viewport.Height;
 
-            Texture2D dialog = new Texture2D(GraphicsDevice, 400, 300);
+            Texture2D dialog = textures["gameOverDlg"];
+            Texture2D okBtn = textures["okBtn"];
 
-            Color[] dialogColorMap = Enumerable.Repeat(Color.BlueViolet, dialog.Height * dialog.Width).ToArray(); ;
+            Point mp = getMousePosition();
+            Rectangle okBtnRect = getOkBtnRect();
 
-            dialog.SetData(dialogColorMap);
+            if (okBtnRect.Contains(mp))
+            {
+                okBtn = Mouse.GetState().LeftButton == ButtonState.Pressed ? textures["okBtnClicked"] : textures["okBtnHov"];
+            }
 
             string msg1 = "Game Over!";
             string msg2 = "Your score: " + Convert.ToString(info.score) + " pts";
 
-            Vector2 fontMeasure1 = common.MeasureString(msg1);
-            Vector2 fontMeasure2 = common.MeasureString(msg2);
+            Vector2 fm1 = common.MeasureString(msg1);
+            Vector2 fm2 = common.MeasureString(msg2);
 
             spriteBatch.Draw(dialog, new Vector2((w - dialog.Width) / 2, (h - dialog.Height) / 2), Color.White);
-            spriteBatch.DrawString(common, msg1, new Vector2((w - fontMeasure1.X) / 2, h / 3 - fontMeasure1.Y), Color.White);
-            spriteBatch.DrawString(common, msg2, new Vector2((w - fontMeasure2.X) / 2, h / 2 - fontMeasure2.Y / 2), Color.White);
+            spriteBatch.DrawString(common, msg1, new Vector2((w - fm1.X) / 2, (h - dialog.Height) / 2 + fm1.Y), Color.White);
+            spriteBatch.DrawString(common, msg2, new Vector2((w - fm2.X) / 2, h / 2 - fm2.Y * 2), Color.White);
+            spriteBatch.Draw(okBtn, okBtnRect, Color.White);
+        }
+
+        private Texture2D createRectangle(int width, int height, Color color)
+        {
+            Texture2D rect = new Texture2D(GraphicsDevice, width, height);
+
+            Color[] colorMap = Enumerable.Repeat(color, height * width).ToArray();
+
+            rect.SetData(colorMap);
+
+            return rect;
         }
 
         private Point getMousePosition()
@@ -558,6 +582,26 @@ namespace GameForest_Test_Task
         private bool isBlockSelected(TableCoords pos)
         {
             return info.blockSelected() && info.curSelectedBlock.Value == pos;
+        }
+
+        private Rectangle getPlayBtnRect()
+        {
+            Texture2D playBtn = textures["playBtn"];
+
+            int btnCenterX = (GraphicsDevice.Viewport.Width - playBtn.Width) / 2;
+            int btnCenterY = (GraphicsDevice.Viewport.Height - playBtn.Height) / 2;
+
+            return new Rectangle(btnCenterX, btnCenterY, playBtn.Width, playBtn.Height);
+        }
+
+        private Rectangle getOkBtnRect()
+        {
+            Texture2D okBtn = textures["okBtn"];
+
+            int okBtnCenterX = (GraphicsDevice.Viewport.Width - okBtn.Width) / 2;
+            int okBtnCenterY = (GraphicsDevice.Viewport.Height + okBtn.Height) / 2;
+
+            return new Rectangle(okBtnCenterX, okBtnCenterY, okBtn.Width, okBtn.Height);
         }
     }
 }
