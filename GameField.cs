@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using Microsoft.Xna.Framework;
+
 namespace GameForest_Test_Task
 {
     struct GameField
@@ -27,11 +29,13 @@ namespace GameForest_Test_Task
             return (BlockTypeE)gen.Next(0, (int)BlockTypeE.BlocksCount - 1);
         }
 
-        public BlockTypeE[] field;
+        private BlockTypeE[] field;
+        private int size;
 
-        public GameField(int size)
+        public GameField(int _size)
         {
-            field = new BlockTypeE[size * size];
+            field = new BlockTypeE[_size * _size];
+            size = _size;
         }
 
         public void Init()
@@ -42,43 +46,56 @@ namespace GameForest_Test_Task
             }
         }
 
-        public void Swap(int idx1, int idx2)
+        public void Swap(Vector2 pos1, Vector2 pos2)
         {
+            int idx1 = posToIdx(pos1);
+            int idx2 = posToIdx(pos2);
+
             BlockTypeE tmp = field[idx1];
             field[idx1] = field[idx2];
             field[idx2] = tmp;
         }
 
-        public BlockTypeE Get(int idx)
+        public BlockTypeE Get(Vector2 pos)
         {
-            return OutOfBounds(idx) ? BlockTypeE.Empty : field[idx];
+            return OutOfBounds(pos) ? BlockTypeE.Empty : field[posToIdx(pos)];
         }
 
-        public bool Set(int idx, BlockTypeE type)
+        public bool Set(Vector2 pos, BlockTypeE type)
         {
-            if (OutOfBounds(idx)) return false;
+            if (OutOfBounds(pos)) return false;
 
-            field[idx] = type;
+            field[posToIdx(pos)] = type;
 
             return true;
         }
 
-        public void SetEmpty(int idx)
+        public void SetEmpty(Vector2 pos)
         {
-            if (!OutOfBounds(idx))
+            if (!OutOfBounds(pos))
             {
-                field[idx] = BlockTypeE.Empty;
+                field[posToIdx(pos)] = BlockTypeE.Empty;
             }
         }
 
-        public bool OutOfBounds(int idx)
+        public bool OutOfBounds(Vector2 pos)
         {
-            return idx < 0 || idx >= field.Length;
+            return outOfSize((int)pos.X) || outOfSize((int)pos.Y);
         }
 
-        public bool IsEmpty(int idx)
+        public bool IsEmpty(Vector2 pos)
         {
-            return Get(idx) == BlockTypeE.Empty;
+            return Get(pos) == BlockTypeE.Empty;
+        }
+
+        private int posToIdx(Vector2 pos)
+        {
+            return (int)(pos.Y * size + pos.X);
+        }
+
+        private bool outOfSize(int a)
+        {
+            return a < 0 || a >= size;
         }
     }
 }
