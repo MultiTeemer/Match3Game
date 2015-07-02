@@ -48,28 +48,11 @@ namespace GameForest_Test_Task
         private int FIELD_SHIFT_BY_Y;
         private int BLOCK_TEXTURE_SIZE;
 
-        private Vector2? curSelectedBlock;
-
         private bool animationRunning;
 
         private List<MoveAnimation> runningAnimations;
 
-        private struct Turn
-        {
-            public Vector2 block1;
-            public Vector2 block2;
-
-            public Turn(Vector2 _block1, Vector2 _block2)
-            {
-                block1 = _block1;
-                block2 = _block2;
-            }
-        };
-
-        private Turn? previousTurn;
-
-        private int score;
-        private int gameTimeMillisecondsElapsed;
+        private GameInfo info;
 
         public Match3Game()
         {
@@ -103,8 +86,6 @@ namespace GameForest_Test_Task
             field = new GameField(FIELD_SIZE);
 
             blocksTextures = new Texture2D[(int)GameField.BlockTypeE.BlocksCount * 2];
-
-            curSelectedBlock = null;
 
             runningAnimations = new List<MoveAnimation>();
         }
@@ -193,7 +174,7 @@ namespace GameForest_Test_Task
             if (btnRect.Contains(mp) && leftKeyClick())
             {
                 curScreen = CurrentScreenE.GameScreen;
-                gameTimeMillisecondsElapsed = 0;
+                info = new GameInfo();
 
                 field.Init();
             }
@@ -223,16 +204,16 @@ namespace GameForest_Test_Task
         {
             animationRunning = runningAnimations.Count > 0;
 
-            if (animationRunning || gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION)
+            if (animationRunning || info.gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION)
                 return;
 
             updateField();
 
-            if (previousTurn != null)
+            if (info.previousTurn != null)
             {
-                addSwapAnimation(previousTurn.Value.block1, previousTurn.Value.block2);
+                addSwapAnimation(info.previousTurn.Value.block1, info.previousTurn.Value.block2);
 
-                previousTurn = null;
+                info.previousTurn = null;
             }
 
             int gameFieldSideLength = FIELD_SIZE * BLOCK_TEXTURE_SIZE;
@@ -245,25 +226,25 @@ namespace GameForest_Test_Task
                 {
                     Vector2 selectedBlock = new Vector2((mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE, (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE);
 
-                    if (curSelectedBlock != null)
+                    if (info.blockSelected())
                     {
-                        if (canSwap(curSelectedBlock.Value, selectedBlock))
+                        if (canSwap(info.curSelectedBlock.Value, selectedBlock))
                         {
-                            previousTurn = new Turn(curSelectedBlock.Value, selectedBlock);
+                            info.previousTurn = new Turn(info.curSelectedBlock.Value, selectedBlock);
 
-                            addSwapAnimation(curSelectedBlock.Value, selectedBlock);
+                            addSwapAnimation(info.curSelectedBlock.Value, selectedBlock);
                         }
 
-                        curSelectedBlock = null;
+                        info.dropSelection();
                     }
                     else
                     {
-                        curSelectedBlock = selectedBlock;
+                        info.curSelectedBlock = selectedBlock;
                     }
                 }
                 else
                 {
-                    curSelectedBlock = null;
+                    info.dropSelection();
                 }
             }
         }
@@ -308,7 +289,7 @@ namespace GameForest_Test_Task
 
         private bool gameEnded()
         {
-            return gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION;
+            return info.gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION;
         }
 
         private int countBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
@@ -330,7 +311,7 @@ namespace GameForest_Test_Task
         {
             field.SetEmpty(pos);
 
-            score += 25;
+            info.score += 25;
         }
 
         private void destroyBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
@@ -384,14 +365,14 @@ namespace GameForest_Test_Task
             }
 
             if (
-                previousTurn != null
+                info.turnMade()
                 && (
-                    field.IsEmpty(previousTurn.Value.block1)
-                    || field.IsEmpty(previousTurn.Value.block2)
+                    field.IsEmpty(info.previousTurn.Value.block1)
+                    || field.IsEmpty(info.previousTurn.Value.block2)
                     )
             )
             {
-                previousTurn = null;
+                info.previousTurn = null;
             }
         }
 
@@ -487,7 +468,7 @@ namespace GameForest_Test_Task
 
                     int typeIdx = (int)field.Get(pos);
 
-                    if (blockSelected(pos))
+                    if (isBlockSelected(pos))
                     {
                         typeIdx += (int)GameField.BlockTypeE.BlocksCount;
                     }
@@ -503,11 +484,11 @@ namespace GameForest_Test_Task
 
             if (!gameEnded())
             {
-                gameTimeMillisecondsElapsed += (int)gameTime.ElapsedGameTime.TotalMilliseconds;
+                info.gameTimeMillisecondsElapsed += (int)gameTime.ElapsedGameTime.TotalMilliseconds;
             }
 
-            spriteBatch.DrawString(common, "Timer: 0:" + Convert.ToString(60 - gameTimeMillisecondsElapsed / 1000), new Vector2(0, 0), Color.White);
-            spriteBatch.DrawString(common, "Score: " + Convert.ToString(score), new Vector2(0, 30), Color.White);
+            spriteBatch.DrawString(common, "Timer: 0:" + Convert.ToString(60 - info.gameTimeMillisecondsElapsed / 1000), new Vector2(0, 0), Color.White);
+            spriteBatch.DrawString(common, "Score: " + Convert.ToString(info.score), new Vector2(0, 30), Color.White);
         }
 
         private void drawGameScreenAnimation(GameTime gameTime)
@@ -553,7 +534,7 @@ namespace GameForest_Test_Task
             dialog.SetData(dialogColorMap);
 
             string msg1 = "Game Over!";
-            string msg2 = "Your score: " + Convert.ToString(score) + " pts";
+            string msg2 = "Your score: " + Convert.ToString(info.score) + " pts";
 
             Vector2 fontMeasure1 = common.MeasureString(msg1);
             Vector2 fontMeasure2 = common.MeasureString(msg2);
@@ -586,9 +567,9 @@ namespace GameForest_Test_Task
             return Mouse.GetState().LeftButton == ButtonState.Released && lastState.LeftButton == ButtonState.Pressed;
         }
 
-        private bool blockSelected(Vector2 pos)
+        private bool isBlockSelected(Vector2 pos)
         {
-            return curSelectedBlock != null && curSelectedBlock.Value == pos;
+            return info.blockSelected() && info.curSelectedBlock.Value == pos;
         }
     }
 }
