@@ -243,21 +243,14 @@ namespace GameForest_Test_Task
                 {
                     int selectedItemIdx = (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE * FIELD_SIZE + (mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE;
 
-                    if (curSelectedItemIdx == -1)
+                    if (curSelectedItemIdx != -1 && canSwap(curSelectedItemIdx, selectedItemIdx))
                     {
-                        curSelectedItemIdx = selectedItemIdx;
-                    }
-                    else
-                    {
-                        if (canSwap(curSelectedItemIdx, selectedItemIdx))
-                        {
-                            previousTurn = new Turn(curSelectedItemIdx, selectedItemIdx);
+                        previousTurn = new Turn(curSelectedItemIdx, selectedItemIdx);
 
-                            addSwapAnimation(curSelectedItemIdx, selectedItemIdx);
-                        }
-
-                        curSelectedItemIdx = -1;
+                        addSwapAnimation(curSelectedItemIdx, selectedItemIdx);
                     }
+
+                    curSelectedItemIdx = curSelectedItemIdx == -1 ? selectedItemIdx : -1;
                 }
                 else
                 {
@@ -314,7 +307,7 @@ namespace GameForest_Test_Task
         {
             int counter = 0;
             Vector2 pos = start + shift;
-            bool sameBlock = type == field.Get(tableCoordsToBlockId((int)pos.X, (int)pos.Y));
+            bool sameBlock = type == field.Get(tableCoordsToBlockId(pos));
 
             while (sameBlock)
             {
