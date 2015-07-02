@@ -518,7 +518,7 @@ namespace GameForest_Test_Task
                 float x = curr.start.X + curr.timeElapsed * curr.shift.X;
                 float y = curr.start.Y + curr.timeElapsed * curr.shift.Y;
 
-                spriteBatch.Draw(getBlockTextureByType(curr.type), new Vector2(x, y), Color.White);
+                spriteBatch.Draw(blocksTextures[(int)curr.type], new Vector2(x, y), Color.White);
             }
 
             runningAnimations = animations;
@@ -557,11 +557,6 @@ namespace GameForest_Test_Task
             float y = FIELD_SHIFT_BY_Y + pos.row * BLOCK_TEXTURE_SIZE;
 
             return new Vector2(x, y);
-        }
-
-        private Texture2D getBlockTextureByType(GameField.BlockTypeE type)
-        {
-            return blocksTextures[(int)type];
         }
 
         private bool leftKeyClick()
