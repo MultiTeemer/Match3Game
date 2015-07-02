@@ -421,6 +421,7 @@ namespace GameForest_Test_Task
                 if (firstEmptyRow != -1)
                 {
                     int[] fallHeight = new int[FIELD_SIZE];
+                    Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
 
                     fallHeight[firstEmptyRow] = 1;
 
@@ -433,18 +434,38 @@ namespace GameForest_Test_Task
 
                         if (!isEmpty)
                         {
-                            Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
                             Vector2 destination = new Vector2(i, j + fallHeight[j]);
-                            float duration = fallHeight[j] / BLOCK_DROP_DOWN_VELOCITY;
 
-                            MoveAnimation anim = new MoveAnimation(getBlockCoords(idx), shift, duration, field.Get(idx), destination);
+                            runningAnimations.Add(createOneDropDownAnimation(getBlockCoords(idx), destination, field.Get(idx)));
 
-                            runningAnimations.Add(anim);
                             field.SetEmpty(idx);
                         }
                     }
+
+                    int newBlocksCount = fallHeight[0];
+                    float startY = FIELD_SHIFT_BY_Y - BLOCK_TEXTURE_SIZE;
+                    float startX = getBlockCoords(tableCoordsToBlockId(i, 0)).X;
+
+                    for (int j = 0; j < newBlocksCount; ++j)
+                    {
+                        Vector2 start = new Vector2(startX, startY);
+                        Vector2 destination = new Vector2(i, newBlocksCount - j - 1);
+
+                        runningAnimations.Add(createOneDropDownAnimation(start, destination, GameField.RandomType()));
+
+                        startY -= BLOCK_TEXTURE_SIZE;
+                    }
                 }
             }
+        }
+
+        private MoveAnimation createOneDropDownAnimation(Vector2 start, Vector2 destination, GameField.BlockTypeE type)
+        {
+            int idx = tableCoordsToBlockId(destination);
+            float duration = Math.Abs(getBlockCoords(idx).Y - start.Y) / BLOCK_TEXTURE_SIZE / BLOCK_DROP_DOWN_VELOCITY;
+            Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
+
+            return new MoveAnimation(start, shift, duration, type, destination);
         }
 
         private void updateField()

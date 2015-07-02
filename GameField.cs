@@ -20,6 +20,13 @@ namespace GameForest_Test_Task
             Empty,
         };
 
+        private static Random gen = new Random();
+
+        public static BlockTypeE RandomType()
+        {
+            return (BlockTypeE)gen.Next(0, (int)BlockTypeE.BlocksCount - 1);
+        }
+
         public BlockTypeE[] field;
 
         public GameField(int size)
@@ -29,11 +36,9 @@ namespace GameForest_Test_Task
 
         public void Init()
         {
-            Random gen = new Random();
-
             for (int i = 0; i < field.Length; ++i)
             {
-                field[i] = (BlockTypeE)gen.Next(0, (int)BlockTypeE.BlocksCount - 1);
+                field[i] = RandomType();
             }
         }
 
