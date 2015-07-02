@@ -404,24 +404,6 @@ namespace GameForest_Test_Task
             }
         }
 
-        private void generateItems()
-        {
-            Random gen = new Random();
-
-            for (int i = 0; i < FIELD_SIZE; ++i)
-            {
-                for (int j = 0; j < FIELD_SIZE; ++j)
-                {
-                    int idx = tableCoordsToBlockId(i, j);
-
-                    if (field.IsEmpty(idx))
-                    {
-                        field.Set(idx, (GameField.BlockTypeE)gen.Next(0, (int)GameField.BlockTypeE.BlocksCount));
-                    }
-                }
-            }
-        }
-
         private void createDropDownAnimations()
         {
             for (int i = 0; i < FIELD_SIZE; ++i)
