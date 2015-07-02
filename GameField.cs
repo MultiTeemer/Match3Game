@@ -61,6 +61,11 @@ namespace GameForest_Test_Task
             return OutOfBounds(pos) ? BlockTypeE.Empty : field[posToIdx(pos)];
         }
 
+        public BlockTypeE Get(int col, int row)
+        {
+            return Get(new TableCoords(col, row));
+        }
+
         public bool Set(TableCoords pos, BlockTypeE type)
         {
             if (OutOfBounds(pos)) return false;

@@ -309,59 +309,50 @@ namespace GameForest_Test_Task
             return counter;
         }
 
-        private void destroyOneBlock(TableCoords pos)
-        {
-            field.SetEmpty(pos);
-
-            info.score += 25;
-        }
-
-        private void destroyBlocks(GameField.BlockTypeE type, TableCoords start, TableCoords shift)
-        {
-            TableCoords pos = start + shift;
-
-            while (type == field.Get(pos))
-            {
-                destroyOneBlock(pos);
-
-                pos += shift;
-            }
-        }
-
         private void destroyChains()
         {
+            bool[,] destroyed = new bool[FIELD_SIZE, FIELD_SIZE];
+
+            for (int i = 0; i < FIELD_SIZE; ++i)
+            {
+                GameField.BlockTypeE[] row = new GameField.BlockTypeE[FIELD_SIZE];
+                GameField.BlockTypeE[] col = new GameField.BlockTypeE[FIELD_SIZE];
+
+                for (int j = 0; j < FIELD_SIZE; ++j)
+                {
+                    col[j] = field.Get(i, j);
+                    row[j] = field.Get(j, i);
+                }
+
+                for (int j = 0; j < FIELD_SIZE - 2; ++j)
+                {
+                    if (col[j] == col[j + 1] && col[j] == col[j + 2])
+                    {
+                        for (int k = j; k < FIELD_SIZE && col[k] == col[j]; ++k)
+                        {
+                            destroyed[i, k] = true;
+                        }
+                    }
+
+                    if (row[j] == row[j + 1] && row[j] == row[j + 2])
+                    {
+                        for (int k = j; k < FIELD_SIZE && row[k] == row[j]; ++k)
+                        {
+                            destroyed[k, i] = true;
+                        }
+                    }
+                }
+            }
+
             for (int i = 0; i < FIELD_SIZE; ++i)
             {
                 for (int j = 0; j < FIELD_SIZE; ++j)
                 {
-                    TableCoords start = new TableCoords(j, i);
-                    GameField.BlockTypeE type = field.Get(start);
-                    bool blocksDestroyed = false;
-
-                    if (type == GameField.BlockTypeE.Empty) continue;
-
-                    int horCount = countBlocks(type, start, new TableCoords(-1, 0)) + 1 + countBlocks(type, start, new TableCoords(1, 0));
-                    int verCount = countBlocks(type, start, new TableCoords(0, -1)) + 1 + countBlocks(type, start, new TableCoords(0, 1));
-
-                    if (horCount >= 3)
+                    if (destroyed[i, j])
                     {
-                        blocksDestroyed = true;
+                        field.SetEmpty(new TableCoords(i, j));
 
-                        destroyBlocks(type, start, new TableCoords(-1, 0));
-                        destroyBlocks(type, start, new TableCoords(1, 0));
-                    }
-
-                    if (verCount >= 3)
-                    {
-                        blocksDestroyed = true;
-
-                        destroyBlocks(type, start, new TableCoords(0, -1));
-                        destroyBlocks(type, start, new TableCoords(0, 1));
-                    }
-
-                    if (blocksDestroyed)
-                    {
-                        destroyOneBlock(start);
+                        info.score += 25;
                     }
                 }
             }
