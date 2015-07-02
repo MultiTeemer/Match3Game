@@ -36,6 +36,7 @@ namespace GameForest_Test_Task
         private const int FIELD_SIZE = 8;
         private const int GAME_DURATION = 60;
         private const float SWAP_ANIM_DURATION = 200;
+        private const float DESTROY_ANIMATION_DURATION = 500;
         private const float BLOCK_DROP_DOWN_VELOCITY = 5e-3f;
 
         private int FIELD_SHIFT_BY_X;
@@ -44,7 +45,7 @@ namespace GameForest_Test_Task
 
         private bool animationRunning;
 
-        private List<MoveAnimation> runningAnimations;
+        private List<Animation> runningAnimations;
 
         private GameInfo info;
 
@@ -65,27 +66,15 @@ namespace GameForest_Test_Task
                 "okBtnHov",
                 "okBtnClicked",
                 "gameOverDlg",
-                "circle",
-                "diamond",
-                "hex",
-                "square",
-                "star",
-                "triangle",
-                "circleHl",
-                "diamondHl",
-                "hexHl",
-                "squareHl",
-                "starHl",
-                "triangleHl",
             };
 
             textures = new Dictionary<string, Texture2D>();
 
             field = new GameField(FIELD_SIZE);
 
-            blocksTextures = new Texture2D[(int)GameField.BlockType.BlocksCount * 2];
+            blocksTextures = new Texture2D[(int)GameField.BlockType.BlocksCount * 3];
 
-            runningAnimations = new List<MoveAnimation>();
+            runningAnimations = new List<Animation>();
         }
 
         protected override void Initialize()
@@ -99,7 +88,7 @@ namespace GameForest_Test_Task
 
             for (int i = 0; i < requiredTextures.Length; ++i)
             {
-                textures.Add(requiredTextures[i], Content.Load<Texture2D>("graphics/" + requiredTextures[i]));
+                textures.Add(requiredTextures[i], loadTexture(requiredTextures[i]));
             }
 
             string[] blocksTexturesNames = new string[] {
@@ -115,8 +104,13 @@ namespace GameForest_Test_Task
 
             for (int i = 0; i < blocksCount; ++i)
             {
+                textures.Add(blocksTexturesNames[i], loadTexture(blocksTexturesNames[i]));
+                textures.Add(blocksTexturesNames[i] + "Hl", loadTexture(blocksTexturesNames[i] + "Hl"));
+                textures.Add(blocksTexturesNames[i] + "Dstrd", loadTexture(blocksTexturesNames[i] + "Dstrd"));
+
                 blocksTextures[i] = textures[blocksTexturesNames[i]];
                 blocksTextures[i + blocksCount] = textures[blocksTexturesNames[i] + "Hl"];
+                blocksTextures[i + blocksCount * 2] = textures[blocksTexturesNames[i] + "Dstrd"];
             }
 
             BLOCK_TEXTURE_SIZE = blocksTextures[0].Width;
@@ -316,6 +310,15 @@ namespace GameForest_Test_Task
             return counter;
         }
 
+        private void destroyOneBlock(TableCoords block)
+        {
+            info.score += 25;
+
+            runningAnimations.Add(new DestroyAnimation(DESTROY_ANIMATION_DURATION, block, field.Get(block)));
+
+            field.SetEmpty(block);
+        }
+
         private void destroyChains()
         {
             bool[,] destroyed = new bool[FIELD_SIZE, FIELD_SIZE];
@@ -333,7 +336,7 @@ namespace GameForest_Test_Task
 
                 for (int j = 0; j < FIELD_SIZE - 2; ++j)
                 {
-                    if (col[j] == col[j + 1] && col[j] == col[j + 2])
+                    if (col[j] != GameField.BlockType.Empty && col[j] == col[j + 1] && col[j] == col[j + 2])
                     {
                         for (int k = j; k < FIELD_SIZE && col[k] == col[j]; ++k)
                         {
@@ -341,7 +344,7 @@ namespace GameForest_Test_Task
                         }
                     }
 
-                    if (row[j] == row[j + 1] && row[j] == row[j + 2])
+                    if (row[j] != GameField.BlockType.Empty && row[j] == row[j + 1] && row[j] == row[j + 2])
                     {
                         for (int k = j; k < FIELD_SIZE && row[k] == row[j]; ++k)
                         {
@@ -357,9 +360,7 @@ namespace GameForest_Test_Task
                 {
                     if (destroyed[i, j])
                     {
-                        field.SetEmpty(new TableCoords(i, j));
-
-                        info.score += 25;
+                        destroyOneBlock(new TableCoords(i, j));
                     }
                 }
             }
@@ -442,7 +443,9 @@ namespace GameForest_Test_Task
         private void updateField()
         {
             destroyChains();
-            createDropDownAnimations();
+
+            if (runningAnimations.Count == 0) // there is no destroy animations
+                createDropDownAnimations();
         }
 
         private void drawGameScreen(GameTime gameTime)
@@ -495,12 +498,12 @@ namespace GameForest_Test_Task
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
-            List<MoveAnimation> animations = new List<MoveAnimation>();
-            List<MoveAnimation>.Enumerator i = runningAnimations.GetEnumerator();
+            List<Animation> animations = new List<Animation>();
+            List<Animation>.Enumerator i = runningAnimations.GetEnumerator();
 
             while (i.MoveNext())
             {
-                MoveAnimation curr = i.Current;
+                Animation curr = i.Current;
 
                 curr.timeElapsed += dt;
 
@@ -508,15 +511,30 @@ namespace GameForest_Test_Task
                 {
                     animations.Add(curr);
                 }
-                else
+
+                if (curr is MoveAnimation)
                 {
-                    field.Set(curr.destination, curr.type);
+                    MoveAnimation anim = (MoveAnimation)curr;
+
+                    float x = anim.start.X + curr.timeElapsed * anim.shift.X;
+                    float y = anim.start.Y + curr.timeElapsed * anim.shift.Y;
+
+                    spriteBatch.Draw(blocksTextures[(int)anim.type], new Vector2(x, y), Color.White);
+
+                    if (anim.Ended())
+                    {
+                        field.Set(anim.destination, anim.type);
+                    }
                 }
+                else if (curr is DestroyAnimation)
+                {
+                    DestroyAnimation anim = (DestroyAnimation)curr;
 
-                float x = curr.start.X + curr.timeElapsed * curr.shift.X;
-                float y = curr.start.Y + curr.timeElapsed * curr.shift.Y;
+                    Texture2D texture = blocksTextures[(int)anim.type + 2 * (int)GameField.BlockType.BlocksCount];
+                    float alpha = 1 - anim.timeElapsed / anim.duration;
 
-                spriteBatch.Draw(blocksTextures[(int)curr.type], new Vector2(x, y), Color.White);
+                    spriteBatch.Draw(texture, getBlockCoords(anim.block), Color.White * alpha);
+                }
             }
 
             runningAnimations = animations;
@@ -602,6 +620,11 @@ namespace GameForest_Test_Task
             int okBtnCenterY = (GraphicsDevice.Viewport.Height + okBtn.Height) / 2;
 
             return new Rectangle(okBtnCenterX, okBtnCenterY, okBtn.Width, okBtn.Height);
+        }
+
+        private Texture2D loadTexture(string name)
+        {
+            return Content.Load<Texture2D>("graphics/" + name);
         }
     }
 }
