@@ -8,21 +8,21 @@ namespace GameForest_Test_Task
 {
     struct MoveAnimation
     {
-        public int blockId;
         public float timeElapsed;
         public float duration;
-        public Vector2 shift;
         public GameField.BlockTypeE type;
+        public Vector2 start;
+        public Vector2 shift;
         public Vector2 destination;
 
-        public MoveAnimation(int id, Vector2 sh, float d, GameField.BlockTypeE t, Vector2 dest)
+        public MoveAnimation(Vector2 _start, Vector2 _shift, float _duration, GameField.BlockTypeE _type, Vector2 _destination)
         {
-            blockId = id;
+            start = _start;
             timeElapsed = 0;
-            shift = sh;
-            duration = d;
-            destination = dest;
-            type = t;
+            shift = _shift;
+            duration = _duration;
+            destination = _destination;
+            type = _type;
         }
     }
 }

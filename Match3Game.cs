@@ -51,8 +51,7 @@ namespace GameForest_Test_Task
 
         private bool animationRunning;
 
-        private List<MoveAnimation> curAnimations;
-        private bool[] inAnimation;
+        private List<MoveAnimation> runningAnimations;
 
         private struct Turn
         {
@@ -103,10 +102,7 @@ namespace GameForest_Test_Task
 
             curSelectedItemIdx = -1;
 
-            animationRunning = false;
-
-            curAnimations = new List<MoveAnimation>();
-            inAnimation = new bool[FIELD_SIZE * FIELD_SIZE];
+            runningAnimations = new List<MoveAnimation>();
         }
 
         protected override void Initialize()
@@ -220,7 +216,7 @@ namespace GameForest_Test_Task
 
         private void updateGameScreen(GameTime gameTime)
         {
-            animationRunning = curAnimations.Count > 0;
+            animationRunning = runningAnimations.Count > 0;
 
             if (animationRunning) return;
 
@@ -270,7 +266,7 @@ namespace GameForest_Test_Task
             Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, dy * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
 
             MoveAnimation block1Movement = new MoveAnimation(
-                id1,
+                getBlockCoords(id1),
                 shift,
                 SWAP_ANIM_DURATION,
                 field.Get(id1),
@@ -278,18 +274,18 @@ namespace GameForest_Test_Task
             );
 
             MoveAnimation block2Movement = new MoveAnimation(
-                id2,
+                getBlockCoords(id2),
                 -shift,
                 SWAP_ANIM_DURATION,
                 field.Get(id2),
                 blockIdToTableCoords(id1)
             );
 
-            inAnimation[id1] = true;
-            inAnimation[id2] = true;
+            runningAnimations.Add(block1Movement);
+            runningAnimations.Add(block2Movement);
 
-            curAnimations.Add(block1Movement);
-            curAnimations.Add(block2Movement);
+            field.SetEmpty(id1);
+            field.SetEmpty(id2);
         }
 
         private bool canSwap(int id1, int id2)
@@ -430,12 +426,10 @@ namespace GameForest_Test_Task
                             Vector2 destination = new Vector2(i, j + fallHeight[j]);
                             float duration = fallHeight[j] / BLOCK_DROP_DOWN_VELOCITY;
 
-                            MoveAnimation anim = new MoveAnimation(idx, shift, duration, field.Get(idx), destination);
+                            MoveAnimation anim = new MoveAnimation(getBlockCoords(idx), shift, duration, field.Get(idx), destination);
 
-                            curAnimations.Add(anim);
+                            runningAnimations.Add(anim);
                             field.SetEmpty(idx);
-
-                            inAnimation[idx] = true;
                         }
                     }
                 }
@@ -459,9 +453,7 @@ namespace GameForest_Test_Task
                 {
                     int idx = tableCoordsToBlockId(j, i);
 
-                    if (field.Get(idx) == GameField.BlockTypeE.Empty) continue; // remove later
-
-                    if (inAnimation[idx]) continue;
+                    if (field.IsEmpty(idx)) continue;
 
                     Texture2D blockTexture = getBlockTextureById(idx);
 
@@ -478,7 +470,7 @@ namespace GameForest_Test_Task
             float dt = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
             List<MoveAnimation> animations = new List<MoveAnimation>();
-            List<MoveAnimation>.Enumerator i = curAnimations.GetEnumerator();
+            List<MoveAnimation>.Enumerator i = runningAnimations.GetEnumerator();
 
             while (i.MoveNext())
             {
@@ -492,26 +484,31 @@ namespace GameForest_Test_Task
                 }
                 else
                 {
-                    int idx = tableCoordsToBlockId(curr.destination);
-                    inAnimation[idx] = false;
-
-                    field.Set(idx, curr.type);
+                    field.Set(tableCoordsToBlockId(curr.destination), curr.type);
                 }
 
-                Vector2 tableCoords = blockIdToTableCoords(curr.blockId);
-
-                float x = FIELD_SHIFT_BY_X + tableCoords.X * BLOCK_TEXTURE_SIZE + curr.timeElapsed * curr.shift.X;
-                float y = FIELD_SHIFT_BY_Y + tableCoords.Y * BLOCK_TEXTURE_SIZE + curr.timeElapsed * curr.shift.Y;
+                float x = curr.start.X + curr.timeElapsed * curr.shift.X;
+                float y = curr.start.Y + curr.timeElapsed * curr.shift.Y;
 
                 spriteBatch.Draw(getBlockTextureByType(curr.type), new Vector2(x, y), Color.White);
             }
 
-            curAnimations = animations;
+            runningAnimations = animations;
         }
 
         private Point getMousePosition()
         {
             return Mouse.GetState().Position;
+        }
+
+        private Vector2 getBlockCoords(int id)
+        {
+            Vector2 tableCoords = blockIdToTableCoords(id);
+
+            float x = FIELD_SHIFT_BY_X + tableCoords.X * BLOCK_TEXTURE_SIZE;
+            float y = FIELD_SHIFT_BY_Y + tableCoords.Y * BLOCK_TEXTURE_SIZE;
+
+            return new Vector2(x, y);
         }
 
         private Vector2 blockIdToTableCoords(int id)
