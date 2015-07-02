@@ -10,12 +10,12 @@ namespace GameForest_Test_Task
     {
         public float timeElapsed;
         public float duration;
-        public GameField.BlockTypeE type;
+        public GameField.BlockType type;
         public Vector2 start;
         public Vector2 shift;
         public TableCoords destination;
 
-        public MoveAnimation(Vector2 _start, Vector2 _shift, float _duration, GameField.BlockTypeE _type, TableCoords _destination)
+        public MoveAnimation(Vector2 _start, Vector2 _shift, float _duration, GameField.BlockType _type, TableCoords _destination)
         {
             start = _start;
             timeElapsed = 0;

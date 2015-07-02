@@ -9,7 +9,7 @@ namespace GameForest_Test_Task
 {
     struct GameField
     {
-        public enum BlockTypeE
+        public enum BlockType
         { 
             Cirle,
             Diamond,
@@ -24,17 +24,17 @@ namespace GameForest_Test_Task
 
         private static Random gen = new Random();
 
-        public static BlockTypeE RandomType()
+        public static BlockType RandomType()
         {
-            return (BlockTypeE)gen.Next(0, (int)BlockTypeE.BlocksCount - 1);
+            return (BlockType)gen.Next(0, (int)BlockType.BlocksCount - 1);
         }
 
-        private BlockTypeE[] field;
+        private BlockType[] field;
         private int size;
 
         public GameField(int _size)
         {
-            field = new BlockTypeE[_size * _size];
+            field = new BlockType[_size * _size];
             size = _size;
         }
 
@@ -51,22 +51,22 @@ namespace GameForest_Test_Task
             int idx1 = posToIdx(pos1);
             int idx2 = posToIdx(pos2);
 
-            BlockTypeE tmp = field[idx1];
+            BlockType tmp = field[idx1];
             field[idx1] = field[idx2];
             field[idx2] = tmp;
         }
 
-        public BlockTypeE Get(TableCoords pos)
+        public BlockType Get(TableCoords pos)
         {
-            return OutOfBounds(pos) ? BlockTypeE.Empty : field[posToIdx(pos)];
+            return OutOfBounds(pos) ? BlockType.Empty : field[posToIdx(pos)];
         }
 
-        public BlockTypeE Get(int col, int row)
+        public BlockType Get(int col, int row)
         {
             return Get(new TableCoords(col, row));
         }
 
-        public bool Set(TableCoords pos, BlockTypeE type)
+        public bool Set(TableCoords pos, BlockType type)
         {
             if (OutOfBounds(pos)) return false;
 
@@ -79,7 +79,7 @@ namespace GameForest_Test_Task
         {
             if (!OutOfBounds(pos))
             {
-                field[posToIdx(pos)] = BlockTypeE.Empty;
+                field[posToIdx(pos)] = BlockType.Empty;
             }
         }
 
@@ -90,7 +90,7 @@ namespace GameForest_Test_Task
 
         public bool IsEmpty(TableCoords pos)
         {
-            return Get(pos) == BlockTypeE.Empty;
+            return Get(pos) == BlockType.Empty;
         }
 
         private int posToIdx(TableCoords pos)

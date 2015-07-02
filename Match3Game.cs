@@ -85,7 +85,7 @@ namespace GameForest_Test_Task
 
             field = new GameField(FIELD_SIZE);
 
-            blocksTextures = new Texture2D[(int)GameField.BlockTypeE.BlocksCount * 2];
+            blocksTextures = new Texture2D[(int)GameField.BlockType.BlocksCount * 2];
 
             runningAnimations = new List<MoveAnimation>();
         }
@@ -113,7 +113,7 @@ namespace GameForest_Test_Task
                 "triangle",
             };
 
-            int blocksCount = (int)GameField.BlockTypeE.BlocksCount;
+            int blocksCount = (int)GameField.BlockType.BlocksCount;
 
             for (int i = 0; i < blocksCount; ++i)
             {
@@ -294,7 +294,7 @@ namespace GameForest_Test_Task
             return info.gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION;
         }
 
-        private int countBlocks(GameField.BlockTypeE type, TableCoords start, TableCoords shift)
+        private int countBlocks(GameField.BlockType type, TableCoords start, TableCoords shift)
         {
             int counter = 0;
             TableCoords pos = start + shift;
@@ -315,8 +315,8 @@ namespace GameForest_Test_Task
 
             for (int i = 0; i < FIELD_SIZE; ++i)
             {
-                GameField.BlockTypeE[] row = new GameField.BlockTypeE[FIELD_SIZE];
-                GameField.BlockTypeE[] col = new GameField.BlockTypeE[FIELD_SIZE];
+                GameField.BlockType[] row = new GameField.BlockType[FIELD_SIZE];
+                GameField.BlockType[] col = new GameField.BlockType[FIELD_SIZE];
 
                 for (int j = 0; j < FIELD_SIZE; ++j)
                 {
@@ -424,7 +424,7 @@ namespace GameForest_Test_Task
             }
         }
 
-        private MoveAnimation createOneDropDownAnimation(Vector2 start, TableCoords destination, GameField.BlockTypeE type)
+        private MoveAnimation createOneDropDownAnimation(Vector2 start, TableCoords destination, GameField.BlockType type)
         {
             float duration = Math.Abs(getBlockCoords(destination).Y - start.Y) / BLOCK_TEXTURE_SIZE / BLOCK_DROP_DOWN_VELOCITY;
             Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
@@ -463,7 +463,7 @@ namespace GameForest_Test_Task
 
                     if (isBlockSelected(pos))
                     {
-                        typeIdx += (int)GameField.BlockTypeE.BlocksCount;
+                        typeIdx += (int)GameField.BlockType.BlocksCount;
                     }
 
                     Texture2D blockTexture = blocksTextures[typeIdx];
