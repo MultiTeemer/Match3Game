@@ -490,7 +490,14 @@ namespace GameForest_Test_Task
                 info.gameTimeMillisecondsElapsed += (int)gameTime.ElapsedGameTime.TotalMilliseconds;
             }
 
-            spriteBatch.DrawString(common, "Timer: 0:" + Convert.ToString(60 - info.gameTimeMillisecondsElapsed / 1000), new Vector2(0, 0), Color.White);
+            int timeRest = 60 - info.gameTimeMillisecondsElapsed / 1000;
+            string leftSide = Convert.ToString(timeRest / 60);
+            string rightSide = Convert.ToString(timeRest % 60);
+
+            if (rightSide.Length < 2)
+                rightSide = "0" + rightSide;
+
+            spriteBatch.DrawString(common, "Timer: " + leftSide + ":" + rightSide, new Vector2(0, 0), Color.White);
             spriteBatch.DrawString(common, "Score: " + Convert.ToString(info.score), new Vector2(0, 30), Color.White);
         }
 
