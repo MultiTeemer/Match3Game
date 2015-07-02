@@ -46,7 +46,7 @@ namespace GameForest_Test_Task
             }
         }
 
-        public void Swap(Vector2 pos1, Vector2 pos2)
+        public void Swap(TableCoords pos1, TableCoords pos2)
         {
             int idx1 = posToIdx(pos1);
             int idx2 = posToIdx(pos2);
@@ -56,12 +56,12 @@ namespace GameForest_Test_Task
             field[idx2] = tmp;
         }
 
-        public BlockTypeE Get(Vector2 pos)
+        public BlockTypeE Get(TableCoords pos)
         {
             return OutOfBounds(pos) ? BlockTypeE.Empty : field[posToIdx(pos)];
         }
 
-        public bool Set(Vector2 pos, BlockTypeE type)
+        public bool Set(TableCoords pos, BlockTypeE type)
         {
             if (OutOfBounds(pos)) return false;
 
@@ -70,7 +70,7 @@ namespace GameForest_Test_Task
             return true;
         }
 
-        public void SetEmpty(Vector2 pos)
+        public void SetEmpty(TableCoords pos)
         {
             if (!OutOfBounds(pos))
             {
@@ -78,19 +78,19 @@ namespace GameForest_Test_Task
             }
         }
 
-        public bool OutOfBounds(Vector2 pos)
+        public bool OutOfBounds(TableCoords pos)
         {
-            return outOfSize((int)pos.X) || outOfSize((int)pos.Y);
+            return outOfSize(pos.col) || outOfSize(pos.row);
         }
 
-        public bool IsEmpty(Vector2 pos)
+        public bool IsEmpty(TableCoords pos)
         {
             return Get(pos) == BlockTypeE.Empty;
         }
 
-        private int posToIdx(Vector2 pos)
+        private int posToIdx(TableCoords pos)
         {
-            return (int)(pos.Y * size + pos.X);
+            return pos.row * size + pos.col;
         }
 
         private bool outOfSize(int a)

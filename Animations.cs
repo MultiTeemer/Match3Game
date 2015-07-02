@@ -13,9 +13,9 @@ namespace GameForest_Test_Task
         public GameField.BlockTypeE type;
         public Vector2 start;
         public Vector2 shift;
-        public Vector2 destination;
+        public TableCoords destination;
 
-        public MoveAnimation(Vector2 _start, Vector2 _shift, float _duration, GameField.BlockTypeE _type, Vector2 _destination)
+        public MoveAnimation(Vector2 _start, Vector2 _shift, float _duration, GameField.BlockTypeE _type, TableCoords _destination)
         {
             start = _start;
             timeElapsed = 0;

@@ -224,7 +224,9 @@ namespace GameForest_Test_Task
             {
                 if (gameFieldRect.Contains(mp))
                 {
-                    Vector2 selectedBlock = new Vector2((mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE, (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE);
+                    int selectedCol = (mp.X - FIELD_SHIFT_BY_X) / BLOCK_TEXTURE_SIZE;
+                    int selectedRow = (mp.Y - FIELD_SHIFT_BY_Y) / BLOCK_TEXTURE_SIZE;
+                    TableCoords selectedBlock = new TableCoords(selectedCol, selectedRow);
 
                     if (info.blockSelected())
                     {
@@ -249,12 +251,12 @@ namespace GameForest_Test_Task
             }
         }
 
-        private void addSwapAnimation(Vector2 block1, Vector2 block2)
+        private void addSwapAnimation(TableCoords block1, TableCoords block2)
         {
-            int dx = (int)(block2.X - block1.X);
-            int dy = (int)(block2.Y - block1.Y);
+            int dcol = block2.col - block1.col;
+            int drow = block2.row - block1.row;
 
-            Vector2 shift = new Vector2(dx * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, dy * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
+            Vector2 shift = new Vector2(dcol * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION, drow * BLOCK_TEXTURE_SIZE / SWAP_ANIM_DURATION);
 
             MoveAnimation block1Movement = new MoveAnimation(
                 getBlockCoords(block1),
@@ -279,12 +281,12 @@ namespace GameForest_Test_Task
             field.SetEmpty(block2);
         }
 
-        private bool canSwap(Vector2 block1, Vector2 block2)
+        private bool canSwap(TableCoords block1, TableCoords block2)
         {
-            int dx = (int)Math.Abs(block2.X - block1.X);
-            int dy = (int)Math.Abs(block2.Y - block1.Y);
+            int dcol = Math.Abs(block2.col - block1.col);
+            int drow = Math.Abs(block2.row - block1.row);
 
-            return dx * dy == 0 && (dx != 0 || dy != 0);
+            return dcol * drow == 0 && (dcol != 0 || drow != 0);
         }
 
         private bool gameEnded()
@@ -292,10 +294,10 @@ namespace GameForest_Test_Task
             return info.gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION;
         }
 
-        private int countBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
+        private int countBlocks(GameField.BlockTypeE type, TableCoords start, TableCoords shift)
         {
             int counter = 0;
-            Vector2 pos = start + shift;
+            TableCoords pos = start + shift;
 
             while (type == field.Get(pos))
             {
@@ -307,16 +309,16 @@ namespace GameForest_Test_Task
             return counter;
         }
 
-        private void destroyOneBlock(Vector2 pos)
+        private void destroyOneBlock(TableCoords pos)
         {
             field.SetEmpty(pos);
 
             info.score += 25;
         }
 
-        private void destroyBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
+        private void destroyBlocks(GameField.BlockTypeE type, TableCoords start, TableCoords shift)
         {
-            Vector2 pos = start + shift;
+            TableCoords pos = start + shift;
 
             while (type == field.Get(pos))
             {
@@ -332,29 +334,29 @@ namespace GameForest_Test_Task
             {
                 for (int j = 0; j < FIELD_SIZE; ++j)
                 {
-                    Vector2 start = new Vector2(j, i);
+                    TableCoords start = new TableCoords(j, i);
                     GameField.BlockTypeE type = field.Get(start);
                     bool blocksDestroyed = false;
 
                     if (type == GameField.BlockTypeE.Empty) continue;
 
-                    int horCount = countBlocks(type, start, new Vector2(-1, 0)) + 1 + countBlocks(type, start, new Vector2(1, 0));
-                    int verCount = countBlocks(type, start, new Vector2(0, -1)) + 1 + countBlocks(type, start, new Vector2(0, 1));
+                    int horCount = countBlocks(type, start, new TableCoords(-1, 0)) + 1 + countBlocks(type, start, new TableCoords(1, 0));
+                    int verCount = countBlocks(type, start, new TableCoords(0, -1)) + 1 + countBlocks(type, start, new TableCoords(0, 1));
 
                     if (horCount >= 3)
                     {
                         blocksDestroyed = true;
 
-                        destroyBlocks(type, start, new Vector2(-1, 0));
-                        destroyBlocks(type, start, new Vector2(1, 0));
+                        destroyBlocks(type, start, new TableCoords(-1, 0));
+                        destroyBlocks(type, start, new TableCoords(1, 0));
                     }
 
                     if (verCount >= 3)
                     {
                         blocksDestroyed = true;
 
-                        destroyBlocks(type, start, new Vector2(0, -1));
-                        destroyBlocks(type, start, new Vector2(0, 1));
+                        destroyBlocks(type, start, new TableCoords(0, -1));
+                        destroyBlocks(type, start, new TableCoords(0, 1));
                     }
 
                     if (blocksDestroyed)
@@ -384,7 +386,7 @@ namespace GameForest_Test_Task
 
                 for (int j = FIELD_SIZE - 1; j >= 0 && firstEmptyRow == -1; --j)
                 {
-                    if (field.IsEmpty(new Vector2(i, j)))
+                    if (field.IsEmpty(new TableCoords(i, j)))
                     {
                         firstEmptyRow = j;
                     }
@@ -399,14 +401,14 @@ namespace GameForest_Test_Task
 
                     for (int j = firstEmptyRow - 1; j >= 0; --j)
                     {
-                        Vector2 pos = new Vector2(i, j);
+                        TableCoords pos = new TableCoords(i, j);
                         bool isEmpty = field.IsEmpty(pos);
 
                         fallHeight[j] = fallHeight[j + 1] + Convert.ToInt32(isEmpty);
 
                         if (!isEmpty)
                         {
-                            Vector2 destination = new Vector2(i, j + fallHeight[j]);
+                            TableCoords destination = new TableCoords(i, j + fallHeight[j]);
 
                             runningAnimations.Add(createOneDropDownAnimation(getBlockCoords(pos), destination, field.Get(pos)));
 
@@ -416,12 +418,12 @@ namespace GameForest_Test_Task
 
                     int newBlocksCount = fallHeight[0];
                     float startY = FIELD_SHIFT_BY_Y - BLOCK_TEXTURE_SIZE;
-                    float startX = getBlockCoords(new Vector2(i, 0)).X;
+                    float startX = getBlockCoords(new TableCoords(i, 0)).X;
 
                     for (int j = 0; j < newBlocksCount; ++j)
                     {
                         Vector2 start = new Vector2(startX, startY);
-                        Vector2 destination = new Vector2(i, newBlocksCount - j - 1);
+                        TableCoords destination = new TableCoords(i, newBlocksCount - j - 1);
 
                         runningAnimations.Add(createOneDropDownAnimation(start, destination, GameField.RandomType()));
 
@@ -431,7 +433,7 @@ namespace GameForest_Test_Task
             }
         }
 
-        private MoveAnimation createOneDropDownAnimation(Vector2 start, Vector2 destination, GameField.BlockTypeE type)
+        private MoveAnimation createOneDropDownAnimation(Vector2 start, TableCoords destination, GameField.BlockTypeE type)
         {
             float duration = Math.Abs(getBlockCoords(destination).Y - start.Y) / BLOCK_TEXTURE_SIZE / BLOCK_DROP_DOWN_VELOCITY;
             Vector2 shift = new Vector2(0, BLOCK_TEXTURE_SIZE * BLOCK_DROP_DOWN_VELOCITY);
@@ -462,7 +464,7 @@ namespace GameForest_Test_Task
             {
                 for (int j = 0; j < FIELD_SIZE; ++j)
                 {
-                    Vector2 pos = new Vector2(j, i);
+                    TableCoords pos = new TableCoords(j, i);
 
                     if (field.IsEmpty(pos)) continue;
 
@@ -549,10 +551,10 @@ namespace GameForest_Test_Task
             return Mouse.GetState().Position;
         }
 
-        private Vector2 getBlockCoords(Vector2 pos)
+        private Vector2 getBlockCoords(TableCoords pos)
         {
-            float x = FIELD_SHIFT_BY_X + pos.X * BLOCK_TEXTURE_SIZE;
-            float y = FIELD_SHIFT_BY_Y + pos.Y * BLOCK_TEXTURE_SIZE;
+            float x = FIELD_SHIFT_BY_X + pos.col * BLOCK_TEXTURE_SIZE;
+            float y = FIELD_SHIFT_BY_Y + pos.row * BLOCK_TEXTURE_SIZE;
 
             return new Vector2(x, y);
         }
@@ -567,7 +569,7 @@ namespace GameForest_Test_Task
             return Mouse.GetState().LeftButton == ButtonState.Released && lastState.LeftButton == ButtonState.Pressed;
         }
 
-        private bool isBlockSelected(Vector2 pos)
+        private bool isBlockSelected(TableCoords pos)
         {
             return info.blockSelected() && info.curSelectedBlock.Value == pos;
         }
