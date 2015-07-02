@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using Microsoft.Xna.Framework;
@@ -28,8 +29,6 @@ namespace GameForest_Test_Task
 
         MouseState lastState;
 
-        GameStatusE gameState;
-        GameTime gameStartTime;
         GameField field;
 
         private delegate void updater(GameTime gameTime);
@@ -38,8 +37,10 @@ namespace GameForest_Test_Task
         private string[] requiredTextures;
         private Dictionary<string, Texture2D> textures;
         private Texture2D[] blocksTextures;
+        private SpriteFont common;
 
         private const int FIELD_SIZE = 8;
+        private const int GAME_DURATION = 60;
         private const float SWAP_ANIM_DURATION = 200;
         private const float BLOCK_DROP_DOWN_VELOCITY = 5e-3f;
 
@@ -66,6 +67,9 @@ namespace GameForest_Test_Task
         };
 
         private Turn? previousTurn;
+
+        private int score;
+        private int gameTimeMillisecondsElapsed;
 
         public Match3Game()
         {
@@ -139,6 +143,8 @@ namespace GameForest_Test_Task
             BLOCK_TEXTURE_SIZE = blocksTextures[0].Width;
             FIELD_SHIFT_BY_X = (GraphicsDevice.Viewport.Width - FIELD_SIZE * BLOCK_TEXTURE_SIZE) / 2;
             FIELD_SHIFT_BY_Y = (GraphicsDevice.Viewport.Height - FIELD_SIZE * BLOCK_TEXTURE_SIZE) / 2;
+
+            common = Content.Load<SpriteFont>("fonts/CommonFont");
         }
 
         protected override void UnloadContent()
@@ -187,8 +193,7 @@ namespace GameForest_Test_Task
             if (btnRect.Contains(mp) && leftKeyClick())
             {
                 curScreen = CurrentScreenE.GameScreen;
-                gameState = GameStatusE.GameRunning;
-                gameStartTime = gameTime;
+                gameTimeMillisecondsElapsed = 0;
 
                 field.Init();
             }
@@ -218,7 +223,8 @@ namespace GameForest_Test_Task
         {
             animationRunning = runningAnimations.Count > 0;
 
-            if (animationRunning) return;
+            if (animationRunning || gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION)
+                return;
 
             updateField();
 
@@ -299,6 +305,11 @@ namespace GameForest_Test_Task
             return dx * dy == 0 && (dx != 0 || dy != 0);
         }
 
+        private bool gameEnded()
+        {
+            return gameTimeMillisecondsElapsed / 1000 >= GAME_DURATION;
+        }
+
         private int countBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
         {
             int counter = 0;
@@ -321,7 +332,7 @@ namespace GameForest_Test_Task
         {
             field.SetEmpty(idx);
 
-            // add to score
+            score += 25;
         }
 
         private void destroyBlocks(GameField.BlockTypeE type, Vector2 start, Vector2 shift)
@@ -444,9 +455,17 @@ namespace GameForest_Test_Task
 
         private void drawGameScreen(GameTime gameTime)
         {
-            if (animationRunning)
+            drawGameScreenGameRunning(gameTime);
+
+            if (runningAnimations.Count > 0)
                 drawGameScreenAnimation(gameTime);
 
+            if (gameEnded())
+                drawGameScreenGameOver(gameTime);
+        }
+
+        private void drawGameScreenGameRunning(GameTime gameTime)
+        {
             for (int i = 0; i < FIELD_SIZE; ++i)
             {
                 for (int j = 0; j < FIELD_SIZE; ++j)
@@ -463,6 +482,14 @@ namespace GameForest_Test_Task
                     spriteBatch.Draw(blockTexture, new Vector2(x, y), Color.White);
                 }
             }
+
+            if (!gameEnded())
+            {
+                gameTimeMillisecondsElapsed += (int)gameTime.ElapsedGameTime.TotalMilliseconds;
+            }
+
+            spriteBatch.DrawString(common, "Timer: 0:" + Convert.ToString(60 - gameTimeMillisecondsElapsed / 1000), new Vector2(0, 0), Color.White);
+            spriteBatch.DrawString(common, "Score: " + Convert.ToString(score), new Vector2(0, 30), Color.White);
         }
 
         private void drawGameScreenAnimation(GameTime gameTime)
@@ -494,6 +521,28 @@ namespace GameForest_Test_Task
             }
 
             runningAnimations = animations;
+        }
+
+        private void drawGameScreenGameOver(GameTime gameTime)
+        {
+            int w = GraphicsDevice.Viewport.Width;
+            int h = GraphicsDevice.Viewport.Height;
+
+            Texture2D dialog = new Texture2D(GraphicsDevice, 400, 300);
+
+            Color[] dialogColorMap = Enumerable.Repeat(Color.BlueViolet, dialog.Height * dialog.Width).ToArray(); ;
+
+            dialog.SetData(dialogColorMap);
+
+            string msg1 = "Game Over!";
+            string msg2 = "Your score: " + Convert.ToString(score) + " pts";
+
+            Vector2 fontMeasure1 = common.MeasureString(msg1);
+            Vector2 fontMeasure2 = common.MeasureString(msg2);
+
+            spriteBatch.Draw(dialog, new Vector2((w - dialog.Width) / 2, (h - dialog.Height) / 2), Color.White);
+            spriteBatch.DrawString(common, msg1, new Vector2((w - fontMeasure1.X) / 2, h / 3 - fontMeasure1.Y), Color.White);
+            spriteBatch.DrawString(common, msg2, new Vector2((w - fontMeasure2.X) / 2, h / 2 - fontMeasure2.Y / 2), Color.White);
         }
 
         private Point getMousePosition()

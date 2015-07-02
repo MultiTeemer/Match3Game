@@ -178,3 +178,9 @@
 /processorParam:TextureFormat=Color
 /build:graphics/triangleHl.png
 
+#begin fonts/CommonFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:TextureFormat=Compressed
+/build:fonts/CommonFont.spritefont
+
