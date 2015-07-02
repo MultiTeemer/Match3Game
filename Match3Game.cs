@@ -366,6 +366,7 @@ namespace GameForest_Test_Task
                     if (type == GameField.BlockTypeE.Empty) continue;
 
                     int horCount = countBlocks(type, start, new Vector2(-1, 0)) + 1 + countBlocks(type, start, new Vector2(1, 0));
+                    int verCount = countBlocks(type, start, new Vector2(0, -1)) + 1 + countBlocks(type, start, new Vector2(0, 1));
 
                     if (horCount >= 3)
                     {
@@ -374,8 +375,6 @@ namespace GameForest_Test_Task
                         destroyBlocks(type, start, new Vector2(-1, 0));
                         destroyBlocks(type, start, new Vector2(1, 0));
                     }
-
-                    int verCount = countBlocks(type, start, new Vector2(0, -1)) + 1 + countBlocks(type, start, new Vector2(0, 1));
 
                     if (verCount >= 3)
                     {
