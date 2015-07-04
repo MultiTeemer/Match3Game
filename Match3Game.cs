@@ -287,7 +287,7 @@ namespace GameForest_Test_Task
             int dcol = Math.Abs(block2.col - block1.col);
             int drow = Math.Abs(block2.row - block1.row);
 
-            return dcol * drow == 0 && (dcol != 0 || drow != 0);
+            return dcol * drow == 0 && (dcol == 1 || drow == 1);
         }
 
         private bool gameEnded()
